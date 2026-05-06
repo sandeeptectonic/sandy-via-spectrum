@@ -1,0 +1,73 @@
+{%- liquid
+  # Debug section to understand metaobject data structure
+  if section.settings.widget_handle != blank
+    assign widget = shop.metaobjects.spectrum_sv_widget[section.settings.widget_handle]
+  endif
+-%}
+
+<section class="spectrum-debug" style="padding: 2rem; background: #f5f5f5; margin: 2rem 0;">
+  <div class="section--page-width">
+    <h2>Debug: Spectrum Metaobject Data</h2>
+
+    <h3>Widget Data:</h3>
+    <pre style="background: white; padding: 1rem; overflow: auto;">{{ widget | json }}</pre>
+
+    {% if widget %}
+      <h3>Widget Videos ({{ widget.videos.value.size }} items):</h3>
+      {% for video in widget.videos.value limit: 3 %}
+        <div style="border: 1px solid #ccc; margin: 1rem 0; padding: 1rem; background: white;">
+          <h4>Video {{ forloop.index }}:</h4>
+          <p><strong>Video Object:</strong></p>
+          <pre>{{ video | json }}</pre>
+
+          <p><strong>Video Fields:</strong></p>
+          <ul>
+            <li>Title: {{ video.title.value | default: 'Not set' }}</li>
+            <li>Video File: {{ video.video_file.value | default: 'Not set' }}</li>
+            <li>Video File Type: {{ video.video_file.value.class | default: 'Unknown' }}</li>
+            <li>Thumbnail: {{ video.thumbnail.value | default: 'Not set' }}</li>
+            <li>Products Raw: {{ video.products_contained.value | default: 'Not set' }}</li>
+            <li>Products Type: {{ video.products_contained.value.class | default: 'Unknown' }}</li>
+            <li>Products Size: {{ video.products_contained.value.size | default: 'Unknown' }}</li>
+          </ul>
+
+          {% if video.video_file.value %}
+            <p><strong>Video URL Tests:</strong></p>
+            <ul>
+              <li>file_url: {{ video.video_file.value | file_url | default: 'Failed' }}</li>
+              <li>Direct access: {{ video.video_file.value.url | default: 'No URL property' }}</li>
+              <li>Sources: {{ video.video_file.value.sources | default: 'No sources' }}</li>
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p><strong>No widget found with handle:</strong> {{ section.settings.widget_handle }}</p>
+
+      <h3>Available Widgets:</h3>
+      {% for widget_item in shop.metaobjects.spectrum_sv_widget %}
+        <p>Handle: {{ widget_item.handle }}, Type: {{ widget_item.type }}</p>
+      {% endfor %}
+    {% endif %}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Spectrum Debug",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "widget_handle",
+      "label": "Widget Handle",
+      "default": "carousel-homepage-demo"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Spectrum Debug"
+    }
+  ]
+}
+{% endschema %}

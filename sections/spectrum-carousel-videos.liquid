@@ -1,0 +1,204 @@
+{%- liquid
+  # Get widget metaobject by handle
+  if section.settings.widget_handle != blank
+    assign widget = shop.metaobjects.spectrum_sv_widget[section.settings.widget_handle]
+  endif
+
+  # Fallback to manual video selection if no widget
+  if widget == blank and section.settings.manual_videos != blank
+    assign videos = section.settings.manual_videos
+    assign widget_type = 'carousel'
+  else
+    assign videos = widget.videos.value
+    assign widget_type = widget.widget_type.value
+  endif
+-%}
+
+<link rel="stylesheet" href="{{ 'section-spectrum-carousel.css' | asset_url }}" media="print" onload="this.media='all'">
+<noscript>{{ 'section-spectrum-carousel.css' | asset_url | stylesheet_tag }}</noscript>
+
+<script src="{{ 'section-spectrum-carousel.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+<section class="spectrum-carousel-videos section" data-section-id="{{ section.id }}" {{ section.shopify_attributes }}>
+  <div class="section-background color-{{ section.settings.color_scheme }}"></div>
+  <div class="section--page-width">
+    {%- if section.settings.heading != blank -%}
+      <div class="spectrum-carousel__header">
+        <h2 class="spectrum-carousel__heading h2">{{ section.settings.heading }}</h2>
+        {%- if section.settings.description != blank -%}
+          <p class="spectrum-carousel__description">{{ section.settings.description }}</p>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    {%- if videos != blank and videos.size > 0 -%}
+      <div class="spectrum-carousel__container"
+           data-spectrum-widget='{"type":"{{ widget_type }}","id":"{{ section.id }}"}'>
+        <div class="spectrum-carousel__track">
+          {%- for video in videos limit: section.settings.max_videos -%}
+            {%- assign video_id = 'video-' | append: section.id | append: '-' | append: forloop.index -%}
+            <div class="spectrum-carousel__slide">
+              <button class="spectrum-carousel__trigger"
+                      type="button"
+                      data-video-id="{{ video_id }}"
+                      data-video-index="{{ forloop.index0 }}"
+                      data-video-url="{%- if video.video_file.value.sources.first -%}{{ video.video_file.value.sources.first.url }}{%- endif -%}"
+                      data-video-title="{{ video.title.value | escape }}">
+                <div class="spectrum-carousel__thumbnail">
+                  {%- if video.thumbnail.value -%}
+                    <img src="{{ video.thumbnail.value | image_url: width: 400 }}"
+                         alt="{{ video.title.value | escape }}"
+                         loading="lazy"
+                         width="400"
+                         height="480">
+                  {%- elsif video.video_file.value -%}
+                    {%- if video.video_file.value.sources.first -%}
+                      <video class="spectrum-carousel__preview"
+                             autoplay muted loop playsinline
+                             preload="metadata"
+                             src="{{ video.video_file.value.sources.first.url }}">
+                      </video>
+                    {%- else -%}
+                      {%- comment -%} Fallback: use video_tag filter {%- endcomment -%}
+                      {{ video.video_file.value | video_tag: autoplay: true, muted: true, loop: true, controls: false, class: 'spectrum-carousel__preview' }}
+                    {%- endif -%}
+                  {%- endif -%}
+
+                  <div class="spectrum-carousel__overlay">
+                    <div class="spectrum-carousel__info">
+                      <h3>{{ video.title.value }}</h3>
+                      {%- if video.products_contained.value != blank and video.products_contained.value.size > 0 -%}
+                        <p>{{ video.products_contained.value.size }}
+                          {%- if video.products_contained.value.size == 1 -%}product{%- else -%}products{%- endif -%}</p>
+                      {%- endif -%}
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {%- comment -%} Store product data for modal {%- endcomment -%}
+              {%- if video.products_contained.value != blank and video.products_contained.value.size > 0 -%}
+                <script type="application/json" data-products-for="{{ video_id }}">
+                  [
+                    {%- for product in video.products_contained.value -%}
+                      {
+                        "id": {{ product.id | json }},
+                        "title": {{ product.title | json }},
+                        "handle": {{ product.handle | json }},
+                        "price": {{ product.price | money | json }},
+                        "image": {{ product.featured_image | image_url: width: 300 | json }},
+                        "available": {{ product.available | json }},
+                        "url": {{ product.url | json }}
+                      }{%- unless forloop.last -%},{%- endunless -%}
+                    {%- endfor -%}
+                  ]
+                </script>
+              {%- endif -%}
+            </div>
+          {%- endfor -%}
+        </div>
+
+        {%- if videos.size > 1 -%}
+          <div class="spectrum-carousel__nav">
+            <button class="spectrum-carousel__nav-prev" type="button" aria-label="Previous">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" stroke-width="2"/>
+              </svg>
+            </button>
+            <button class="spectrum-carousel__nav-next" type="button" aria-label="Next">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" stroke-width="2"/>
+              </svg>
+            </button>
+          </div>
+        {%- endif -%}
+      </div>
+    {%- else -%}
+      <div class="spectrum-carousel__empty">
+        <p>{{ section.settings.empty_message | default: 'No videos available' }}</p>
+      </div>
+    {%- endif -%}
+  </div>
+</section>
+
+{%- comment -%} Modal will be dynamically created by JavaScript {%- endcomment -%}
+<div id="spectrum-modal-{{ section.id }}" class="spectrum-modal" aria-hidden="true"></div>
+
+{%- comment -%} Hidden product data for each video {%- endcomment -%}
+{%- for video in videos limit: section.settings.max_videos -%}
+  {%- assign video_id = 'video-' | append: section.id | append: '-' | append: forloop.index -%}
+  {%- if video.products_contained.value != blank and video.products_contained.value.size > 0 -%}
+    <script type="application/json" data-modal-products-for="{{ video_id }}">
+      [
+        {%- for product in video.products_contained.value -%}
+          {
+            "id": {{ product.id | json }},
+            "title": {{ product.title | json }},
+            "handle": {{ product.handle | json }},
+            "price": {{ product.price | money | json }},
+            "image": {{ product.featured_image | image_url: width: 300 | json }},
+            "available": {{ product.available | json }},
+            "url": {{ product.url | json }}
+          }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ]
+    </script>
+  {%- endif -%}
+{%- endfor -%}
+
+{% schema %}
+{
+  "name": "Spectrum Carousel Videos",
+  "tag": "section",
+  "class": "section-spectrum-carousel",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "default": "scheme-1",
+      "label": "t:sections.all.color_scheme.label"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Shop Our Videos"
+    },
+    {
+      "type": "text",
+      "id": "description",
+      "label": "Description"
+    },
+    {
+      "type": "text",
+      "id": "widget_handle",
+      "label": "Widget Handle",
+      "info": "Enter the handle of a spectrum_sv_widget metaobject (e.g., carousel-homepage-demo)"
+    },
+    {
+      "type": "range",
+      "id": "max_videos",
+      "label": "Maximum videos to show",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 9
+    },
+    {
+      "type": "text",
+      "id": "empty_message",
+      "label": "Empty state message",
+      "default": "No videos available"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Spectrum Carousel Videos"
+    }
+  ]
+}
+{% endschema %}

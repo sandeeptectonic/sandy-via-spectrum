@@ -1,0 +1,271 @@
+{%- liquid
+  # Get urgency message from product metafield
+  assign urgency_message = product.metafields.custom.SPECTRUM_urgency_callout
+
+  # Check if we should display the section
+  if urgency_message == blank
+    assign show_section = false
+  else
+    assign show_section = true
+  endif
+
+  # Override with section settings if provided
+  if section.settings.override_text != blank
+    assign urgency_message = section.settings.override_text
+    assign show_section = true
+  endif
+
+  # Handle inventory display
+  assign show_inventory = false
+  assign inventory_message = ""
+
+  if section.settings.show_inventory and product and product.selected_or_first_available_variant
+    assign current_inventory = product.selected_or_first_available_variant.inventory_quantity
+    assign threshold = section.settings.inventory_threshold | default: 10
+
+    # Simplified logic: show if we have a valid inventory number and it's below threshold
+    if current_inventory and current_inventory > 0 and current_inventory <= threshold
+      assign show_inventory = true
+      assign inventory_text_template = section.settings.inventory_text | default: "Only {quantity} left in stock!"
+      assign inventory_message = inventory_text_template | replace: '{quantity}', current_inventory
+    endif
+  endif
+
+  # Show section if either urgency message OR inventory should be displayed
+  if show_inventory
+    assign show_section = true
+  endif
+-%}
+
+
+{%- if show_section -%}
+  <link rel="stylesheet" href="{{ 'section-urgency-callout.css' | asset_url }}" media="print" onload="this.media='all'">
+  <noscript>{{ 'section-urgency-callout.css' | asset_url | stylesheet_tag }}</noscript>
+
+  <div class="urgency-callout urgency-callout--{{ section.settings.style }}" {{ section.shopify_attributes }}>
+    <div class="urgency-callout__container">
+      {%- if section.settings.show_icon -%}
+        <div class="urgency-callout__icon urgency-callout__icon--{{ section.settings.icon_type }}">
+          {%- case section.settings.icon_type -%}
+            {%- when 'fire' -%}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 23C7.62 23 4 19.38 4 15C4 12.38 5.33 10.09 7.33 8.47L8 7.92V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V7.92L16.67 8.47C18.67 10.09 20 12.38 20 15C20 19.38 16.38 23 12 23ZM12 5C10.9 5 10 5.9 10 7V8.82L8.91 9.65C7.33 10.86 6 12.83 6 15C6 18.27 8.73 21 12 21C15.27 21 18 18.27 18 15C18 12.83 16.67 10.86 15.09 9.65L14 8.82V7C14 5.9 13.1 5 12 5Z"/>
+                <path d="M12 19C9.79 19 8 17.21 8 15C8 13.71 8.58 12.56 9.5 11.76L12 9.65L14.5 11.76C15.42 12.56 16 13.71 16 15C16 17.21 14.21 19 12 19Z"/>
+              </svg>
+            {%- when 'clock' -%}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+            {%- when 'alert' -%}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            {%- when 'info' -%}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            {%- when 'star' -%}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+          {%- endcase -%}
+        </div>
+      {%- endif -%}
+
+      <div class="urgency-callout__content">
+        {%- if urgency_message != blank -%}
+          <span class="urgency-callout__text">{{ urgency_message }}</span>
+        {%- endif -%}
+        {%- if show_inventory -%}
+          {%- if urgency_message != blank -%}
+            <span class="urgency-callout__separator">•</span>
+          {%- endif -%}
+          <span class="urgency-callout__inventory">{{ inventory_message }}</span>
+        {%- endif -%}
+      </div>
+
+      {%- if section.settings.show_countdown and section.settings.countdown_end_date != blank -%}
+        <div class="urgency-callout__countdown" data-countdown-end="{{ section.settings.countdown_end_date }}">
+          <span class="countdown-timer" id="countdown-{{ section.id }}"></span>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+
+  {%- if section.settings.show_countdown and section.settings.countdown_end_date != blank -%}
+    <script>
+      (function() {
+        const countdownElement = document.getElementById('countdown-{{ section.id }}');
+        const endDate = new Date('{{ section.settings.countdown_end_date }}').getTime();
+
+        function updateCountdown() {
+          const now = new Date().getTime();
+          const distance = endDate - now;
+
+          if (distance < 0) {
+            countdownElement.textContent = 'Expired';
+            return;
+          }
+
+          const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+          const parts = [];
+          if (days > 0) parts.push(days + 'd');
+          if (hours > 0 || days > 0) parts.push(hours + 'h');
+          if (minutes > 0 || hours > 0 || days > 0) parts.push(minutes + 'm');
+          if (days === 0) parts.push(seconds + 's');
+
+          countdownElement.textContent = parts.join(' ');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+      })();
+    </script>
+  {%- endif -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Urgency Callout",
+  "tag": "section",
+  "class": "section-urgency-callout",
+  "limit": 1,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Display Settings"
+    },
+    {
+      "type": "select",
+      "id": "style",
+      "label": "Style",
+      "options": [
+        {
+          "value": "default",
+          "label": "Default"
+        },
+        {
+          "value": "warning",
+          "label": "Warning (Yellow)"
+        },
+        {
+          "value": "danger",
+          "label": "Danger (Red)"
+        },
+        {
+          "value": "success",
+          "label": "Success (Green)"
+        },
+        {
+          "value": "info",
+          "label": "Info (Blue)"
+        },
+        {
+          "value": "subtle",
+          "label": "Subtle"
+        }
+      ],
+      "default": "warning"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show icon",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "icon_type",
+      "label": "Icon type",
+      "options": [
+        {
+          "value": "fire",
+          "label": "Fire"
+        },
+        {
+          "value": "clock",
+          "label": "Clock"
+        },
+        {
+          "value": "alert",
+          "label": "Alert"
+        },
+        {
+          "value": "info",
+          "label": "Info"
+        },
+        {
+          "value": "star",
+          "label": "Star"
+        }
+      ],
+      "default": "fire"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "override_text",
+      "label": "Override text",
+      "info": "Leave empty to use product metafield value"
+    },
+    {
+      "type": "header",
+      "content": "Countdown Timer"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_countdown",
+      "label": "Show countdown timer",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "countdown_end_date",
+      "label": "Countdown end date",
+      "info": "Format: YYYY-MM-DD HH:MM:SS (e.g., 2024-12-31 23:59:59)",
+      "placeholder": "2024-12-31 23:59:59"
+    },
+    {
+      "type": "header",
+      "content": "Inventory Display"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_inventory",
+      "label": "Show inventory quantity",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "inventory_text",
+      "label": "Inventory text",
+      "default": "Only {quantity} left in stock!",
+      "info": "Use {quantity} to display the inventory count"
+    },
+    {
+      "type": "number",
+      "id": "inventory_threshold",
+      "label": "Show when inventory is below",
+      "default": 10,
+      "info": "Only show inventory when quantity is at or below this number"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Urgency Callout"
+    }
+  ]
+}
+{% endschema %}

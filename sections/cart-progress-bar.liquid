@@ -1,0 +1,148 @@
+{{ 'section-cart-progress-bar.css' | asset_url | stylesheet_tag }}
+
+{%- assign cart_total = cart.total_price -%}
+{%- assign milestones = shop.metafields.custom.SPECTRUM_cart_milestones.value -%}
+{%- assign progress_percentage = 0 -%}
+{%- assign progress_message = "" -%}
+
+{%- if milestones.size > 0 -%}
+  {%- assign sorted_milestones = milestones | sort: 'threshold_amount' -%}
+
+  {%- for milestone in sorted_milestones -%}
+    {%- assign threshold_cents = milestone.threshold_amount | times: 100 -%}
+    {%- if cart_total < threshold_cents -%}
+      {%- assign next_milestone = milestone -%}
+      {%- break -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- if next_milestone -%}
+    {%- assign milestone_threshold_cents = next_milestone.threshold_amount | times: 100 -%}
+    {%- assign amount_needed_cents = milestone_threshold_cents | minus: cart_total -%}
+    {%- if amount_needed_cents > 0 -%}
+      {%- assign amount_needed_formatted = amount_needed_cents | money -%}
+      {%- assign progress_message = "Add " | append: amount_needed_formatted | append: " more to unlock " | append: next_milestone.success_text -%}
+    {%- endif -%}
+    {%- assign progress_percentage = cart_total | times: 100 | divided_by: milestone_threshold_cents -%}
+    {%- if progress_percentage > 100 -%}
+      {%- assign progress_percentage = 100 -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- assign progress_percentage = 100 -%}
+    {%- assign progress_message = "All rewards unlocked!" -%}
+  {%- endif -%}
+
+  <div class="cart-progress-bar" {{ section.shopify_attributes }}>
+    <div class="cart-progress-bar__container">
+      {%- if section.settings.show_title and section.settings.title != blank -%}
+        <div class="cart-progress-bar__title">
+          <h3>{{ section.settings.title }}</h3>
+        </div>
+      {%- endif -%}
+
+      {%- if progress_message != blank -%}
+        <div class="cart-progress-bar__messaging">
+          <div class="cart-progress-bar__progress-text">
+            {{ progress_message }}
+          </div>
+        </div>
+      {%- endif -%}
+
+      <div class="cart-progress-bar__track">
+        <div class="cart-progress-bar__fill" style="width: {{ progress_percentage }}%"></div>
+
+        {%- if section.settings.show_milestone_markers and milestones.size > 0 -%}
+          <div class="cart-progress-bar__markers">
+            {%- for milestone in sorted_milestones -%}
+              {%- assign milestone_amount_cents = milestone.threshold_amount | times: 100 -%}
+              {%- assign highest_milestone_cents = sorted_milestones.last.threshold_amount | times: 100 -%}
+              {%- assign marker_position = milestone_amount_cents | times: 100 | divided_by: highest_milestone_cents -%}
+              {%- assign is_completed = false -%}
+              {%- if cart_total >= milestone_amount_cents -%}
+                {%- assign is_completed = true -%}
+              {%- endif -%}
+
+              <div class="cart-progress-bar__marker{% if is_completed %} cart-progress-bar__marker--completed{% endif %}" style="left: {{ marker_position }}%;">
+                <div class="cart-progress-bar__marker-icon">
+                  {%- if is_completed -%}
+                    <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 5L4.5 8.5L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  {%- else -%}
+                    {%- if milestone.icon and milestone.icon != blank -%}
+                      {{ milestone.icon }}
+                    {%- else -%}
+                      <span class="cart-progress-bar__marker-emoji">{{ milestone.emoji | default: '🎁' }}</span>
+                    {%- endif -%}
+                  {%- endif -%}
+                </div>
+                <div class="cart-progress-bar__marker-details">
+                  <div class="cart-progress-bar__marker-amount">
+                    {{ milestone_amount_cents | money }}
+                  </div>
+                  <div class="cart-progress-bar__marker-label">
+                    {{ milestone.success_text }}
+                  </div>
+                </div>
+              </div>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      {%- if section.settings.show_current_amount -%}
+        <div class="cart-progress-bar__current">
+          <span class="cart-progress-bar__current-amount">{{ cart.total_price | money }}</span>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Cart Progress Bar",
+  "tag": "section",
+  "class": "section-cart-progress-bar",
+  "limit": 1,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Display Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_title",
+      "label": "Show title",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "Unlock Rewards"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_current_amount",
+      "label": "Show current cart amount",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Milestones"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_milestone_markers",
+      "label": "Show milestone markers on progress bar",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Cart Progress Bar"
+    }
+  ]
+}
+{% endschema %}

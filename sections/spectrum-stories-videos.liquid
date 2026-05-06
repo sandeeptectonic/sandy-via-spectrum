@@ -1,0 +1,188 @@
+{%- liquid
+  # Get widget metaobject by handle
+  if section.settings.widget_handle != blank
+    assign widget = shop.metaobjects.spectrum_sv_widget[section.settings.widget_handle]
+  endif
+
+  # Only render if widget exists
+  if widget != blank
+    assign videos = widget.videos.value
+    assign widget_type = 'stories'
+  endif
+-%}
+
+{%- if widget != blank and videos != blank and videos.size > 0 -%}
+  <link rel="stylesheet" href="{{ 'section-spectrum-carousel.css' | asset_url }}" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="{{ 'section-spectrum-stories.css' | asset_url }}" media="print" onload="this.media='all'">
+  <noscript>{{ 'section-spectrum-carousel.css' | asset_url | stylesheet_tag }}</noscript>
+  <noscript>{{ 'section-spectrum-stories.css' | asset_url | stylesheet_tag }}</noscript>
+  <script src="{{ 'section-spectrum-carousel.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+  {%- comment -%} CRITICAL: Must have spectrum-carousel-videos class for JavaScript to initialize {%- endcomment -%}
+  <section class="spectrum-stories-videos spectrum-carousel-videos section" data-section-id="{{ section.id }}" {{ section.shopify_attributes }}>
+    <div class="section-background color-{{ section.settings.color_scheme }}"></div>
+    <div class="section--page-width">
+      {%- if section.settings.heading != blank -%}
+        <div class="spectrum-stories__header">
+          <h2 class="spectrum-stories__heading h2">{{ section.settings.heading }}</h2>
+          {%- if section.settings.description != blank -%}
+            <p class="spectrum-stories__description">{{ section.settings.description }}</p>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      <div class="spectrum-carousel__container spectrum-stories__container"
+           data-spectrum-widget='{"type":"{{ widget_type }}","id":"{{ section.id }}"}'>
+        <div class="spectrum-carousel__track spectrum-stories__track">
+          {%- for video in videos limit: section.settings.max_videos -%}
+            {%- assign video_id = 'video-' | append: section.id | append: '-' | append: forloop.index -%}
+            <div class="spectrum-carousel__slide spectrum-stories__slide">
+              <button class="spectrum-carousel__trigger spectrum-stories__trigger"
+                      type="button"
+                      data-video-id="{{ video_id }}"
+                      data-video-index="{{ forloop.index0 }}"
+                      data-video-url="{%- if video.video_file.value.sources.first -%}{{ video.video_file.value.sources.first.url }}{%- endif -%}"
+                      data-video-title="{{ video.title.value | escape }}">
+
+                {%- comment -%} Instagram Stories style circular thumbnail {%- endcomment -%}
+                <div class="spectrum-stories__ring">
+                  <div class="spectrum-stories__thumbnail">
+                    {%- if video.thumbnail.value -%}
+                      <img src="{{ video.thumbnail.value | image_url: width: 200 }}"
+                           alt="{{ video.title.value | escape }}"
+                           loading="lazy"
+                           width="100"
+                           height="100">
+                    {%- elsif video.video_file.value -%}
+                      {%- if video.video_file.value.sources.first -%}
+                        <video class="spectrum-stories__preview"
+                               autoplay muted loop playsinline
+                               preload="metadata"
+                               src="{{ video.video_file.value.sources.first.url }}">
+                        </video>
+                      {%- else -%}
+                        {{ video.video_file.value | video_tag: autoplay: true, muted: true, loop: true, controls: false, class: 'spectrum-stories__preview' }}
+                      {%- endif -%}
+                    {%- endif -%}
+                  </div>
+                </div>
+
+                {%- comment -%} Optional title below story (like Instagram) {%- endcomment -%}
+                {%- if section.settings.show_titles -%}
+                  <div class="spectrum-stories__title">
+                    <span>{{ video.title.value | truncate: 12 }}</span>
+                  </div>
+                {%- endif -%}
+              </button>
+            </div>
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {%- comment -%} Modal container - same as carousel {%- endcomment -%}
+  <div id="spectrum-modal-{{ section.id }}" class="spectrum-modal" aria-hidden="true"></div>
+
+  {%- comment -%} Hidden product data for each video - same as carousel {%- endcomment -%}
+  {%- for video in videos limit: section.settings.max_videos -%}
+    {%- assign video_id = 'video-' | append: section.id | append: '-' | append: forloop.index -%}
+    {%- if video.products_contained.value != blank and video.products_contained.value.size > 0 -%}
+      <script type="application/json" data-modal-products-for="{{ video_id }}">
+        [
+          {%- for product in video.products_contained.value -%}
+            {
+              "id": {{ product.id | json }},
+              "title": {{ product.title | json }},
+              "handle": {{ product.handle | json }},
+              "price": {{ product.price | money | json }},
+              "image": {{ product.featured_image | image_url: width: 300 | json }},
+              "available": {{ product.available | json }},
+              "url": {{ product.url | json }}
+            }{%- unless forloop.last -%},{%- endunless -%}
+          {%- endfor -%}
+        ]
+      </script>
+    {%- endif -%}
+  {%- endfor -%}
+
+{%- else -%}
+  {%- if section.settings.show_when_empty -%}
+    <section class="spectrum-stories-videos section" {{ section.shopify_attributes }}>
+      <div class="section--page-width">
+        <div class="spectrum-stories__empty">
+          <p>{{ section.settings.empty_message | default: 'No stories available' }}</p>
+        </div>
+      </div>
+    </section>
+  {%- endif -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Spectrum Stories Videos",
+  "tag": "section",
+  "class": "section-spectrum-stories",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "default": "scheme-1",
+      "label": "t:sections.all.color_scheme.label"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Shop Stories"
+    },
+    {
+      "type": "text",
+      "id": "description",
+      "label": "Description"
+    },
+    {
+      "type": "text",
+      "id": "widget_handle",
+      "label": "Widget Handle",
+      "info": "Enter the handle of a spectrum_sv_widget metaobject"
+    },
+    {
+      "type": "range",
+      "id": "max_videos",
+      "label": "Maximum stories to show",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 10
+    },
+    {
+      "type": "checkbox",
+      "id": "show_titles",
+      "label": "Show story titles",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_when_empty",
+      "label": "Show section when no stories",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "empty_message",
+      "label": "Empty state message",
+      "default": "No stories available"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Spectrum Stories Videos"
+    }
+  ]
+}
+{% endschema %}

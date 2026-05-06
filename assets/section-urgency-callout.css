@@ -1,0 +1,234 @@
+/* Urgency Callout Section */
+.urgency-callout {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  animation: urgency-slide-in 0.3s ease-out;
+}
+
+@keyframes urgency-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.urgency-callout__container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--buttons-radius, 4px);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+/* Icon Styling */
+.urgency-callout__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.urgency-callout__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Content */
+.urgency-callout__content {
+  flex: 1;
+  font-weight: 500;
+}
+
+.urgency-callout__text {
+  display: inline-block;
+}
+
+.urgency-callout__separator {
+  display: inline-block;
+  margin: 0 0.5rem;
+  opacity: 0.6;
+}
+
+.urgency-callout__inventory {
+  display: inline-block;
+  font-weight: 600;
+}
+
+/* Countdown Timer */
+.urgency-callout__countdown {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+/* Style Variations */
+.urgency-callout--default .urgency-callout__container {
+  background-color: rgba(var(--color-foreground), 0.05);
+  border: 1px solid rgba(var(--color-foreground), 0.15);
+  color: rgb(var(--color-foreground));
+}
+
+.urgency-callout--warning .urgency-callout__container {
+  background-color: #FFF9E6;
+  border: 1px solid #FFD700;
+  color: #856404;
+}
+
+.urgency-callout--warning .urgency-callout__icon {
+  color: #FFA500;
+}
+
+.urgency-callout--warning .urgency-callout__countdown {
+  background: rgba(255, 193, 7, 0.15);
+}
+
+.urgency-callout--danger .urgency-callout__container {
+  background-color: #FEE9E9;
+  border: 1px solid #F87171;
+  color: #991B1B;
+}
+
+.urgency-callout--danger .urgency-callout__icon {
+  color: #DC2626;
+}
+
+.urgency-callout--danger .urgency-callout__countdown {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.urgency-callout--success .urgency-callout__container {
+  background-color: #E6F7E6;
+  border: 1px solid #4ADE80;
+  color: #166534;
+}
+
+.urgency-callout--success .urgency-callout__icon {
+  color: #16A34A;
+}
+
+.urgency-callout--success .urgency-callout__countdown {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.urgency-callout--info .urgency-callout__container {
+  background-color: #E6F3FF;
+  border: 1px solid #60A5FA;
+  color: #1E40AF;
+}
+
+.urgency-callout--info .urgency-callout__icon {
+  color: #2563EB;
+}
+
+.urgency-callout--info .urgency-callout__countdown {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.urgency-callout--subtle .urgency-callout__container {
+  background-color: transparent;
+  border: none;
+  color: rgb(var(--color-foreground));
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.urgency-callout--subtle .urgency-callout__icon {
+  opacity: 0.7;
+}
+
+/* Icon Animations */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.urgency-callout__icon--fire {
+  animation: pulse 1.5s infinite;
+  color: #FF6B6B;
+}
+
+.urgency-callout__icon--clock {
+  animation: pulse 2s infinite;
+}
+
+.urgency-callout__icon--alert {
+  animation: pulse 1s infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 749px) {
+  .urgency-callout__container {
+    font-size: 0.875rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .urgency-callout__icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .urgency-callout__countdown {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+}
+
+/* Dark mode support using theme color scheme */
+@media (prefers-color-scheme: dark) {
+  .urgency-callout--warning .urgency-callout__container {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.4);
+    color: #FFD700;
+  }
+
+  .urgency-callout--danger .urgency-callout__container {
+    background-color: rgba(220, 38, 38, 0.15);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #F87171;
+  }
+
+  .urgency-callout--success .urgency-callout__container {
+    background-color: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #4ADE80;
+  }
+
+  .urgency-callout--info .urgency-callout__container {
+    background-color: rgba(37, 99, 235, 0.15);
+    border-color: rgba(37, 99, 235, 0.4);
+    color: #60A5FA;
+  }
+}
+
+/* Hover Effects */
+@media (hover: hover) {
+  .urgency-callout__container:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Print styles */
+@media print {
+  .urgency-callout {
+    display: none;
+  }
+}
