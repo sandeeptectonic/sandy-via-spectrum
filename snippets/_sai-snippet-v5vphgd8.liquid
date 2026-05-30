@@ -113,13 +113,18 @@
 }
 
 /* Title accent — responsive treatment.
-   Mobile: 3px border-bottom under the text only (inline-block hugs the
-   text width). Desktop: switches to a vertical accent bar to the left of
-   the text via a pseudo-element with rounded ends. Color falls back to
-   the heading's text color via currentColor when the merchant doesn't
-   override it. */
+   Mobile: 3px border-bottom under the text only. Desktop: switches to a
+   vertical accent bar to the left of the text via a pseudo-element with
+   rounded ends. Color falls back to the heading's text color via
+   currentColor when the merchant doesn't override it.
+   `width: fit-content` lets the heading shrink to text width so the
+   border/bar doesn't span the full container, and `margin-inline: auto`
+   centers the heading as a block — inline-block wouldn't, because that
+   would defer centering to the parent's text-align. */
 .sai-v5vphgd8__heading[data-border-bottom="true"] {
-  display: inline-block !important;
+  display: block !important;
+  width: fit-content;
+  margin-inline: auto;
   padding-bottom: var(--sai-size-2);
   border-bottom: 3px solid
     var(--sai-v5vphgd8-heading-border-color, currentColor);
