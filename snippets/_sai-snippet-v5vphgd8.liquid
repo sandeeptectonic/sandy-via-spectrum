@@ -112,6 +112,38 @@
   color: var(--sai-color-fg);
 }
 
+/* Title accent — responsive treatment.
+   Mobile: 3px border-bottom under the text only (inline-block hugs the
+   text width). Desktop: switches to a vertical accent bar to the left of
+   the text via a pseudo-element with rounded ends. Color falls back to
+   the heading's text color via currentColor when the merchant doesn't
+   override it. */
+.sai-v5vphgd8__heading[data-border-bottom="true"] {
+  display: inline-block !important;
+  padding-bottom: var(--sai-size-2);
+  border-bottom: 3px solid
+    var(--sai-v5vphgd8-heading-border-color, currentColor);
+}
+
+@media (min-width: 750px) {
+  .sai-v5vphgd8__heading[data-border-bottom="true"] {
+    position: relative;
+    padding-bottom: 0;
+    padding-left: var(--sai-size-4);
+    border-bottom: none;
+  }
+  .sai-v5vphgd8__heading[data-border-bottom="true"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    bottom: 0.15em;
+    width: 6px;
+    background: var(--sai-v5vphgd8-heading-border-color, currentColor);
+    border-radius: 999px;
+  }
+}
+
 .sai-v5vphgd8__description {
   margin: 0 0 var(--sai-size-5);
   font-family: var(--sai-font-body);
@@ -1581,6 +1613,22 @@
   {%- assign section_asset_url = content.section_asset.previewUrl -%}
 {%- endif -%}
 
+{%- comment -%}
+  Heading underline — opt-in border below the title text. Color falls back
+  to the heading's text color (currentColor) when no override is set.
+{%- endcomment -%}
+{%- if content.heading_border_bottom == nil -%}
+  {%- assign heading_border_bottom = false -%}
+{%- else -%}
+  {%- assign heading_border_bottom = content.heading_border_bottom -%}
+{%- endif -%}
+{%- assign heading_border_color = content.heading_border_color | default: '' -%}
+{%- capture heading_border_attr -%}
+  {%- if heading_border_bottom %} data-border-bottom="true"
+    {%- if heading_border_color != blank %} style="--sai-v5vphgd8-heading-border-color: {{ heading_border_color }};"{%- endif -%}
+  {%- endif -%}
+{%- endcapture -%}
+
 {%- assign section_asset_position = content.section_asset_position | default: 'left' -%}
 {%- unless section_asset_position == 'left' or section_asset_position == 'right' -%}
   {%- assign section_asset_position = 'left' -%}
@@ -2038,10 +2086,10 @@
                alt=""
                loading="lazy"
                aria-hidden="true" />
-          <h2 class="sai-v5vphgd8__heading">{{ heading | escape }}</h2>
+          <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}>{{ heading | escape }}</h2>
         </div>
       {%- else -%}
-        <h2 class="sai-v5vphgd8__heading">{{ heading | escape }}</h2>
+        <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}>{{ heading | escape }}</h2>
       {%- endif -%}
     {%- endif -%}
     {%- if description != blank -%}
