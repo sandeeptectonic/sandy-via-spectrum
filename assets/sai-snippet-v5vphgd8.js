@@ -252,11 +252,9 @@
         // page-size rounding.
         const visiblePct = (grid.clientWidth / grid.scrollWidth) * 100
         const widthPct = Math.max(visiblePct, 5)
-        const progress =
-          reachableMax > 0 ? Math.min(1, grid.scrollLeft / reachableMax) : 0
+        const progress = reachableMax > 0 ? Math.min(1, grid.scrollLeft / reachableMax) : 0
         const leftPctOfTrack = progress * (100 - widthPct)
-        const translatePctOfOwnWidth =
-          widthPct > 0 ? (leftPctOfTrack / widthPct) * 100 : 0
+        const translatePctOfOwnWidth = widthPct > 0 ? (leftPctOfTrack / widthPct) * 100 : 0
         thumb.style.width = `${widthPct}%`
         thumb.style.transform = `translateX(${translatePctOfOwnWidth}%)`
       }
