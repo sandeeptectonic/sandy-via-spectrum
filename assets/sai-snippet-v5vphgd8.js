@@ -256,21 +256,24 @@
       }
 
       if (thumb && grid.scrollWidth > 0) {
-        // Page-based thumb sizing + position, scoped to *reachable* pages
-        // rather than nominal pages. With fractional cpr (e.g. 1.5) the
-        // pageSize rounds to 1, totalPages = cards.length, but the last
-        // snap-reachable cardIdx is `floor(max / stride)` which can be
-        // smaller than cards.length - 1. Sizing the thumb by totalPages
-        // would leave it stranded at (lastReachableIdx / totalPages) of
-        // the track on the last page — never flush right. Compute the
-        // count of pages the user can actually land on (`reachablePages`)
-        // and size by that instead.
-        const lastReachablePage =
-          pageSize > 0 ? Math.floor(lastReachableIdx / pageSize) : 0
-        const reachablePages = Math.max(1, lastReachablePage + 1)
-        const widthPct = Math.max(100 / reachablePages, 5)
+        // Pixel-based thumb sizing + position with the correct
+        // `translateX(%)` resolution (relative to the element's own
+        // width). Width = the visible fraction of total content
+        // (clientWidth / scrollWidth). Position = scroll progress
+        // against the snap-aware reachable max. The translate %
+        // is then re-projected from `% of track` to `% of thumb width`
+        // so the thumb's right edge lands flush at the right of the
+        // track on the last reachable scroll position — regardless of
+        // page-size rounding.
+        const visiblePct = (grid.clientWidth / grid.scrollWidth) * 100
+        const widthPct = Math.max(visiblePct, 5)
+        const progress =
+          reachableMax > 0 ? Math.min(1, grid.scrollLeft / reachableMax) : 0
+        const leftPctOfTrack = progress * (100 - widthPct)
+        const translatePctOfOwnWidth =
+          widthPct > 0 ? (leftPctOfTrack / widthPct) * 100 : 0
         thumb.style.width = `${widthPct}%`
-        thumb.style.transform = `translateX(${activePage * 100}%)`
+        thumb.style.transform = `translateX(${translatePctOfOwnWidth}%)`
       }
 
       if (stepper) stepper.textContent = `${activePage + 1} / ${totalPages}`
