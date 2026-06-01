@@ -3,8 +3,8 @@
  *
  * Responsibilities:
  *   1. Variant-resolution binding — `applyVariant` patches the cheap fields
- *      (heading text, description, cards-per-row CSS var) every time the
- *      runtime SDK fires `$spectrum:variant_resolved`.
+ *      (heading text, description, alignment class, cards-per-row CSS var)
+ *      every time the runtime SDK fires `$spectrum:variant_resolved`.
  *   2. Page-level carousel wiring — when `data-layout="carousel"` is on the
  *      layout wrapper, attach arrow / dot handlers and keep the active
  *      progress indicator (dots / scroll-bar thumb / stepper) in sync with
@@ -21,8 +21,8 @@
  * pages cannot collide.
  */
 ;(() => {
-  const SNIPPET_ID = 'v5vphgd8'
-  const FEATURE_SLUG = 'collection_product_list'
+  const SNIPPET_ID = 'tcm9wosw'
+  const FEATURE_SLUG = 'tab_collection_product_list'
   const ROOT_SELECTOR = `.sai-${SNIPPET_ID}`
   const HEADING_SELECTOR = `.sai-${SNIPPET_ID}__heading-text`
   const DESCRIPTION_SELECTOR = `.sai-${SNIPPET_ID}__description`
@@ -110,7 +110,7 @@
 
   // Clamp a single sub-value. Falls back to the per-viewport default when the
   // input is missing / non-numeric — matches the Liquid cascade in
-  // `_sai-snippet-v5vphgd8.liquid` so client variant-swap and SSR agree.
+  // `_sai-snippet-tcm9wosw.liquid` so client variant-swap and SSR agree.
   function clampCpr(value, fallback) {
     const n = typeof value === 'number' ? value : Number.parseFloat(value)
     if (!Number.isFinite(n)) return fallback
@@ -1126,11 +1126,6 @@
    */
   function initAtcButtons(node, dialog, track) {
     const trackFn = typeof track === 'function' ? track : noopTrack
-    // Bind to the primary CTA + any secondary/tertiary buttons rendered
-    // by the new prop set. All three share the action-attribute routing
-    // below; `data-spectrum-action` is the canonical attribute (older
-    // primary builds still emit `data-spectrum-primary-action` for
-    // backward compat — fall back to that if the new attr is missing).
     const ctas = node.querySelectorAll(
       [
         `.sai-${SNIPPET_ID}__cta[data-spectrum-atc]`,
@@ -1187,9 +1182,6 @@
 
         if (action === 'toggle_wishlist') {
           e.preventDefault()
-          // Stub — storage lands in a follow-up. Toggle a class so the
-          // merchant can style the wishlisted state via CSS, and emit
-          // analytics so brands can wire the funnel before storage ships.
           const nowWishlisted = !cta.classList.contains('is-wishlisted')
           cta.classList.toggle('is-wishlisted', nowWishlisted)
           trackFn(`${FEATURE_SLUG}:wishlist_toggle`, {
@@ -1296,7 +1288,7 @@
   }
 
   if (typeof globalThis !== 'undefined' && globalThis.__SAI_TEST_HARNESS__ === true) {
-    globalThis.__saiV5vphgd8 = {
+    globalThis.__saiTcm9wosw = {
       applyVariant,
       clampCpr,
       resolveCardsPerRow,
@@ -1316,6 +1308,78 @@
   // PostHog even when the user immediately lands on the PDP. Native link
   // semantics (cmd-click, middle-click, right-click → Open in new tab)
   // still work — we never call preventDefault from here.
+  // ── Tab strip ───────────────────────────────────────────────
+  //
+  // Tabs / panels are siblings inside the snippet root. Active state lives
+  // on three DOM signals — kept atomic so a partial flip can't leave the
+  // a11y tree inconsistent:
+  //   - `.is-active` class on the chip (CSS hook)
+  //   - `aria-selected` + `tabindex` on the chip
+  //   - `hidden` + `aria-hidden` on the panel
+  //
+  // All panels SSR-render so the carousels / swatches / mini-PDP wiring
+  // initialises eagerly on every panel — the click handler only flips
+  // visibility, never tears down or rebinds.
+  function initTabs(node, track) {
+    const trackFn = typeof track === 'function' ? track : noopTrack
+    const tabs = Array.from(node.querySelectorAll(`.sai-${SNIPPET_ID}__tab[data-spectrum-tab]`))
+    const panels = Array.from(
+      node.querySelectorAll(`.sai-${SNIPPET_ID}__panel[data-spectrum-tab-panel]`),
+    )
+    if (tabs.length === 0 || panels.length === 0) return
+
+    function activate(index) {
+      if (index < 0 || index >= tabs.length) return
+      for (let i = 0; i < tabs.length; i++) {
+        const isActive = i === index
+        const tab = tabs[i]
+        tab.classList.toggle('is-active', isActive)
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false')
+        tab.setAttribute('tabindex', isActive ? '0' : '-1')
+        const panel = panels[i]
+        if (!panel) continue
+        if (isActive) {
+          panel.removeAttribute('hidden')
+          panel.removeAttribute('aria-hidden')
+          // Match the SSR-emitted inline `style="display: none !important"`
+          // on inactive panels — drop the inline override so CSS controls
+          // the active panel's layout.
+          panel.style.removeProperty('display')
+        } else {
+          panel.setAttribute('hidden', '')
+          panel.setAttribute('aria-hidden', 'true')
+          // Hard inline-style override with `!important` — beats any theme
+          // CSS that might fight the `[hidden]` attribute selector. Inline
+          // style with !important is the highest-priority selector outside
+          // of !important rules in author stylesheets, so this is the
+          // smallest hammer that always wins.
+          panel.style.setProperty('display', 'none', 'important')
+        }
+      }
+      trackFn(`${FEATURE_SLUG}:tab_change`, { tab_index: index })
+    }
+
+    for (let i = 0; i < tabs.length; i++) {
+      const index = i
+      const tab = tabs[i]
+      tab.addEventListener('click', () => {
+        if (tab.getAttribute('aria-selected') === 'true') return
+        activate(index)
+        // Move focus to the newly active chip so screen readers announce
+        // the selection and keyboard users land on the right tabstop.
+        tab.focus()
+      })
+      tab.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+        e.preventDefault()
+        const delta = e.key === 'ArrowRight' ? 1 : -1
+        const next = (index + delta + tabs.length) % tabs.length
+        activate(next)
+        tabs[next]?.focus()
+      })
+    }
+  }
+
   function initCardLinkTracking(node, track) {
     if (typeof track !== 'function') return
     const links = node.querySelectorAll(`.sai-${SNIPPET_ID}__card-link`)
@@ -1340,9 +1404,6 @@
     `[data-spectrum-instance-id][data-spectrum-snippet-id="${SNIPPET_ID}"]`,
   )
   for (const node of containers) {
-    initCarousel(node)
-    initImageCarousels(node)
-
     // Bind FIRST so the analytics handles are available before we wire any
     // click listeners that may want to track. Bind is idempotent per node;
     // returns `{ track, emit, unsubscribe }` or undefined if the SDK isn't
@@ -1357,8 +1418,24 @@
       track = handles?.track ? safeTrack(handles.track) : null
     }
 
+    // Mini-PDP is a singleton at the container root; one modal serves
+    // every tab panel's cards. Initialise it once per instance.
     const miniPdp = initMiniPdp(node, track)
-    initAtcButtons(node, miniPdp, track)
-    initCardLinkTracking(node, track)
+
+    // Per-panel: each tab panel has its own `__layout` block, so the
+    // carousel / image-track / atc / card-link wiring runs once per
+    // panel. Hidden panels still init — visibility flips by `hidden`
+    // attribute later (no rebind on tab change).
+    const panelSelector = `.sai-${SNIPPET_ID}__panel[data-spectrum-tab-panel]`
+    const panels = node.querySelectorAll(panelSelector)
+    const initRoots = panels.length > 0 ? panels : [node]
+    for (const root of initRoots) {
+      initCarousel(root)
+      initImageCarousels(root)
+      initAtcButtons(root, miniPdp, track)
+      initCardLinkTracking(root, track)
+    }
+
+    initTabs(node, track)
   }
 })()
