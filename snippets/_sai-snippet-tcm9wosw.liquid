@@ -1883,6 +1883,56 @@
   opacity: 1;
   animation: sai-tcm9wosw-spin 0.7s linear infinite;
 }
+
+/* Secondary + tertiary CTA loading state — same spinner pattern as the
+   primary CTA, but the buttons hold an SVG icon (and sometimes a label)
+   instead of plain text. `color: transparent` hides the label; the
+   nested SVG is hidden via `visibility: hidden` so it doesn't take
+   layout (would shift the spinner) but the button keeps its rendered
+   width. Tertiary buttons are icon-only and use a slightly smaller
+   spinner to fit the 36×36 chassis. */
+.sai-tcm9wosw__secondary-cta[aria-busy="true"],
+.sai-tcm9wosw__tertiary-cta[aria-busy="true"] {
+  color: transparent !important;
+  pointer-events: none;
+  position: relative;
+  opacity: 1 !important;
+  cursor: progress !important;
+}
+.sai-tcm9wosw__secondary-cta[aria-busy="true"] > svg,
+.sai-tcm9wosw__secondary-cta[aria-busy="true"] > img,
+.sai-tcm9wosw__tertiary-cta[aria-busy="true"] > svg,
+.sai-tcm9wosw__tertiary-cta[aria-busy="true"] > img {
+  visibility: hidden;
+}
+.sai-tcm9wosw__secondary-cta[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--sai-color-fg);
+  border-top-color: transparent;
+  border-radius: 50%;
+  opacity: 1;
+  animation: sai-tcm9wosw-spin 0.7s linear infinite;
+}
+.sai-tcm9wosw__tertiary-cta[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--sai-color-fg);
+  border-top-color: transparent;
+  border-radius: 50%;
+  opacity: 1;
+  animation: sai-tcm9wosw-spin 0.7s linear infinite;
+}
 @keyframes sai-tcm9wosw-spin {
   to {
     transform: rotate(360deg);
