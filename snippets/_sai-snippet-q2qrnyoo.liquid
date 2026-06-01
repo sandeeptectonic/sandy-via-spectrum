@@ -1,0 +1,748 @@
+{% doc %}
+  Banner Carousel List — horizontally-scrolling row of merchant-authored
+  banner cards. Each banner is a single clickable card with a full-bleed
+  image, dark overlay, title, optional subtitle, and a destination URL.
+
+  Invoked exclusively from the auto-generated per-instance wrapper produced
+  by `packages/liquid-parser/src/snippet-instance-wrapper.ts`. Merchants
+  never render this file directly.
+
+  @param {Object} variant - The resolved default variant of the snippet
+    instance. Typed prop values live under `variant.content`
+    (eyebrow, heading, banners inline-list, autoplay, accent_color, etc.).
+  @param {Object} mo - The `spectrum_snippet_instance` metaobject drop.
+    Not read inside the snippet body — present for parity with the
+    wrapper contract.
+  @param {String} mutation_handle - Stable handle for this instance.
+    Consumed by the wrapper outer div only; not read inside this body.
+  @param {String} experience_handle - Studio experience handle. Consumed
+    by the wrapper outer div; not read inside this body.
+{% enddoc %}
+
+{%- comment -%}
+  variant.content fields:
+    - eyebrow         string                small label above heading
+    - heading         string                main section title
+    - banners         Array<BannerItem>     inline-list — required, 1..12
+                      BannerItem: {
+                        image: { gid, originalUrl, previewUrl, fileName, kind } (required),
+                        title: string (required),
+                        subtitle?: string,
+                        url: string (required) — absolute or relative
+                      }
+                      `image` is Shopify Files picker output captured at write time.
+    - show_arrows     boolean               desktop prev/next visibility
+    - autoplay        boolean
+    - autoplay_ms     integer 2000..15000   gated by autoplay
+    - accent_color    string                hex color or empty
+
+  Visibility-gate contract: the wrapper div emits both
+  `data-spectrum-lq-snippet` AND `data-spectrum-vis`; this snippet
+  body is rendered inside that wrapper. The wrapper's vis attribute
+  governs visibility — this body does not re-emit it.
+
+  Author selectors stay at single-class specificity (0,1,0) so per-instance
+  baked rules anchored on `[data-spectrum-instance-id][data-spectrum-variant-id]`
+  win the cascade.
+{%- endcomment -%}
+
+{% stylesheet %}
+/* Banner Carousel List — aggregated into spectrum-snippet.css at install */
+
+.sai-q2qrnyoo {
+  --sai-q2qrnyoo-accent: var(--sai-color-primary, var(--sai-color-fg, #000));
+  display: block;
+  width: 100%;
+  color: var(--sai-color-fg);
+  font-family: var(--sai-font-body);
+  padding-block: var(--sai-size-8);
+}
+
+/* Header ─────────────────────────────────────────────────── */
+
+.sai-q2qrnyoo__header {
+  display: block;
+  margin-bottom: var(--sai-size-6);
+  text-align: center;
+}
+
+.sai-q2qrnyoo__eyebrow {
+  display: block !important;
+  margin: 0 0 var(--sai-size-3);
+  font-family: var(--sai-font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--sai-q2qrnyoo-accent);
+}
+
+.sai-q2qrnyoo__heading {
+  display: block !important;
+  margin: 0;
+  font-family: var(--sai-font-heading);
+  font-style: var(--sai-font-heading-style);
+  font-weight: var(--sai-font-heading-weight);
+  font-size: 1.25rem;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: var(--sai-color-fg);
+}
+
+/* Section-title accent — responsive treatment that matches v5vphgd8 /
+   tcm9wosw. The accent (mobile underline / desktop vertical bar)
+   attaches to an inline-block `__eyebrow-text` inner span so it
+   shrinks to text width. The merchant's per-instance text-align on
+   `.__eyebrow` positions the span inside the full-width eyebrow
+   block. Color falls back to the title's text color via currentColor
+   (= the accent var) when no override is set. */
+.sai-q2qrnyoo__eyebrow[data-border-bottom="true"] .sai-q2qrnyoo__eyebrow-text {
+  display: inline-block;
+  padding-bottom: var(--sai-size-2);
+  border-bottom: 3px solid
+    var(--sai-q2qrnyoo-title-border-color, currentColor);
+}
+
+@media (min-width: 750px) {
+  .sai-q2qrnyoo__eyebrow[data-border-bottom="true"] .sai-q2qrnyoo__eyebrow-text {
+    position: relative;
+    padding-bottom: 0;
+    padding-left: var(--sai-size-4);
+    border-bottom: none;
+  }
+  .sai-q2qrnyoo__eyebrow[data-border-bottom="true"] .sai-q2qrnyoo__eyebrow-text::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    bottom: 0.15em;
+    width: 6px;
+    background: var(--sai-q2qrnyoo-title-border-color, currentColor);
+    border-radius: 999px;
+  }
+}
+
+/* Carousel row ───────────────────────────────────────────── */
+
+/* Outer frame — contains the scroll-snap row. Negative margin pulls the
+   row to the viewport edges on small screens so peek cards aren't
+   clipped by the storefront's content gutters. */
+.sai-q2qrnyoo__frame {
+  position: relative;
+  width: 100%;
+}
+
+.sai-q2qrnyoo__row,
+.sai-q2qrnyoo .sai-q2qrnyoo__row {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--sai-size-4);
+  /* `display: flex` + `overflow-x: auto` are layout-critical: themes that
+     override `ul` to `display: block` or `overflow: visible` would let the
+     slides bleed past the row instead of becoming a horizontal scroller.
+     The IIFE also force-applies these as inline-style `!important`
+     declarations at init time — belt-and-suspenders against themes whose
+     `ul` rules win the cascade. */
+  display: flex !important;
+  gap: var(--sai-size-3);
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--sai-size-4);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.sai-q2qrnyoo__row::-webkit-scrollbar { display: none }
+
+/* Themes vary on default <li> reset — pin margin / padding so the slide
+   sits flush against the row edges. `display: flex` on the parent already
+   blockifies the list-item display value. */
+.sai-q2qrnyoo__row > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.sai-q2qrnyoo__slide {
+  position: relative;
+  /* `display: block !important` defends against themes that set `a {
+     display: inline }` — inline elements drop `width` / `height`, which
+     collapses the card to a 0×0 box even when the rest of the rule is
+     intact. Same defense as `.sai-q2qrnyoo__heading` and `tcm9wosw__heading`. */
+  display: block !important;
+  flex: 0 0 auto;
+  width: 240px;
+  height: 300px;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff;
+  /* Neutral pre-load background. Resolves to the theme's subtle surface;
+     transparent fallback ensures the empty slide doesn't paint a strong
+     tint when the theme defines no `--sai-color-bg-subtle`. */
+  background: var(--sai-color-bg-subtle, transparent);
+  scroll-snap-align: center;
+  isolation: isolate;
+}
+.sai-q2qrnyoo__slide:focus-visible {
+  outline: 2px solid var(--sai-q2qrnyoo-accent);
+  outline-offset: 2px;
+}
+
+.sai-q2qrnyoo__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Dark gradient overlay — sits between image and text. Gradient stops
+   chosen to keep the top ~35% of the card unobscured while making the
+   text band fully readable. */
+.sai-q2qrnyoo__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to top,
+    rgba(0, 0, 0, 0.78) 0%,
+    rgba(0, 0, 0, 0.45) 35%,
+    rgba(0, 0, 0, 0) 65%);
+  pointer-events: none;
+}
+
+.sai-q2qrnyoo__text {
+  position: absolute;
+  left: var(--sai-size-4);
+  right: var(--sai-size-4);
+  bottom: var(--sai-size-4);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #fff;
+  text-align: left;
+}
+
+.sai-q2qrnyoo__title {
+  margin: 0;
+  font-family: var(--sai-font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.sai-q2qrnyoo__subtitle {
+  margin: 0;
+  font-family: var(--sai-font-body);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* Controls ───────────────────────────────────────────────── */
+
+.sai-q2qrnyoo__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sai-size-4);
+  margin-top: var(--sai-size-5);
+}
+
+/* Arrow buttons — hidden on mobile via media query below. */
+.sai-q2qrnyoo__arrow {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--sai-color-border, #eaeaea);
+  border-radius: 999px;
+  background: var(--sai-color-bg, #fff);
+  color: var(--sai-color-fg, #000);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.sai-q2qrnyoo__arrow:hover {
+  background: var(--sai-color-bg-subtle, #f4f4f4);
+}
+.sai-q2qrnyoo__arrow:focus-visible {
+  outline: 2px solid var(--sai-q2qrnyoo-accent);
+  outline-offset: 2px;
+}
+.sai-q2qrnyoo__arrow[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sai-q2qrnyoo__arrow-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Progress bar — fixed-width track, thumb width = 100% / N, position
+   driven by `transform: translateX(currentIndex * 100%)`. JS writes
+   the inline transform; CSS provides the smooth transition. */
+.sai-q2qrnyoo__progress {
+  position: relative;
+  flex: 0 0 auto;
+  width: 200px;
+  height: 4px;
+  background: var(--sai-color-border, #eaeaea);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sai-q2qrnyoo__progress-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--sai-q2qrnyoo-accent);
+  border-radius: 999px;
+  transition: transform 200ms ease;
+}
+
+/* Responsive — tablet up: bigger cards, gap; desktop: peek layout. */
+
+@media (min-width: 768px) {
+  .sai-q2qrnyoo { padding-block: var(--sai-size-10); }
+  .sai-q2qrnyoo__header { gap: var(--sai-size-4); margin-bottom: var(--sai-size-8); }
+  .sai-q2qrnyoo__heading { font-size: 1.75rem; }
+  .sai-q2qrnyoo__row { padding-inline: var(--sai-size-6); gap: var(--sai-size-5); }
+  .sai-q2qrnyoo__slide { width: 480px; height: 400px; }
+  .sai-q2qrnyoo__title { font-size: 1.5rem; }
+  .sai-q2qrnyoo__subtitle { font-size: 0.9375rem; }
+  .sai-q2qrnyoo__text { left: var(--sai-size-6); right: var(--sai-size-6); bottom: var(--sai-size-6); }
+  .sai-q2qrnyoo__arrow { display: inline-flex; }
+}
+
+@media (min-width: 1440px) {
+  .sai-q2qrnyoo__row { padding-inline: var(--sai-size-8); gap: var(--sai-size-6); }
+  /* Uniform slide size — all slides at the same dimensions, no
+     active-vs-peripheral size variation. The `.is-active` class still
+     toggles for thumb tracking and overlay state but doesn't change
+     the box. */
+  .sai-q2qrnyoo__slide { width: 700px; height: 460px; }
+  .sai-q2qrnyoo__title { font-size: 2rem; }
+  .sai-q2qrnyoo__subtitle { font-size: 1rem; }
+}
+
+/* ─── Aspect ratio override ────────────────────────────────────
+   When `data-aspect` is anything other than "default", `height` is
+   derived from `aspect-ratio` so every banner becomes the same shape
+   regardless of which layout the merchant picked. The variant's
+   built-in height rules are overridden via `!important` so this knob
+   wins cleanly across all variants. */
+.sai-q2qrnyoo[data-aspect="1/1"]  { --sai-q2qrnyoo-aspect: 1 / 1; }
+.sai-q2qrnyoo[data-aspect="4/3"]  { --sai-q2qrnyoo-aspect: 4 / 3; }
+.sai-q2qrnyoo[data-aspect="16/9"] { --sai-q2qrnyoo-aspect: 16 / 9; }
+.sai-q2qrnyoo[data-aspect="21/9"] { --sai-q2qrnyoo-aspect: 21 / 9; }
+.sai-q2qrnyoo[data-aspect="3/4"]  { --sai-q2qrnyoo-aspect: 3 / 4; }
+.sai-q2qrnyoo[data-aspect="9/16"] { --sai-q2qrnyoo-aspect: 9 / 16; }
+
+.sai-q2qrnyoo:not([data-aspect="default"]) .sai-q2qrnyoo__slide {
+  height: auto !important;
+  aspect-ratio: var(--sai-q2qrnyoo-aspect) !important;
+}
+
+/* ─── Layout variants ─────────────────────────────────────────
+   All variants share base CSS above; these blocks scope further
+   transforms by `data-layout` (set on the wrapper). The JS writes
+   `data-position` on each real slide ∈ [-2, 2] (wrap-aware), which
+   drives per-position transforms. Transitions use a polished
+   ease-out cubic-bezier so snap → transform feels deliberate.
+   ───────────────────────────────────────────────────────────── */
+
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__row,
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__row {
+  align-items: center;
+  /* Allow scaled / rotated content to overflow vertically without clipping. */
+  overflow-y: visible !important;
+}
+
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide,
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide {
+  transform-origin: center center;
+  transition:
+    transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* ── Center-large ─────────────────────────────────────────────
+   The base slide size is LARGER for this variant — that gives the
+   active its absolute "big hero" presence at scale(1). Siblings shrink
+   via `transform: scale()` so they sit cleanly OUTSIDE the active's
+   layout box (no visual overlap). Layout is stable across the
+   animation (transforms only) → no reflow → no CLS. */
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide {
+  /* Mobile slot is narrow so ±1 peeks fit in a ~390px viewport without
+     getting pushed past the edge. Tighter `gap` overall (see row rule
+     above) helps. */
+  width: 220px;
+  height: 340px;
+  transform: scale(1);
+  transition:
+    transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 400ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@media (min-width: 768px) {
+  .sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide {
+    width: 460px;
+    height: 440px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide {
+    width: 700px;
+    height: 500px;
+  }
+}
+
+/* Tighten the gap on center_large so peek slides sit close enough to
+   the active to actually peek inside the viewport rather than off-edge. */
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__row {
+  gap: 4px !important;
+}
+
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide[data-position="0"] {
+  transform: scale(1);
+  z-index: 4;
+}
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide[data-position="1"],
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide[data-position="-1"] {
+  transform: scale(0.72);
+  opacity: 0.55;
+}
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide[data-position="2"],
+.sai-q2qrnyoo--center_large .sai-q2qrnyoo__slide[data-position="-2"] {
+  transform: scale(0.55);
+  opacity: 0.3;
+}
+
+.sai-q2qrnyoo--center_large {
+  padding-block: var(--sai-size-12, 80px);
+}
+
+/* ── Coverflow ────────────────────────────────────────────────
+   Same approach as center-large: larger base slide gives the active
+   visual presence at scale(1); siblings shrink + rotate via transform
+   so they sit cleanly outside the active. No reflow, no CLS. */
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide {
+  width: 180px;
+  height: 280px;
+  transform: scale(1) rotate(0deg);
+  transition:
+    transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 400ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@media (min-width: 768px) {
+  .sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide {
+    width: 320px;
+    height: 460px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide {
+    width: 460px;
+    height: 560px;
+  }
+}
+
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__row {
+  gap: 4px !important;
+}
+
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide[data-position="0"] {
+  transform: scale(1) rotate(0deg);
+  z-index: 4;
+}
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide[data-position="-1"] {
+  transform: scale(0.6) rotate(-12deg);
+  z-index: 3;
+  opacity: 0.95;
+}
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide[data-position="1"] {
+  transform: scale(0.6) rotate(12deg);
+  z-index: 3;
+  opacity: 0.95;
+}
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide[data-position="-2"] {
+  transform: scale(0.5) rotate(-18deg);
+  z-index: 2;
+  opacity: 0.5;
+}
+.sai-q2qrnyoo--coverflow .sai-q2qrnyoo__slide[data-position="2"] {
+  transform: scale(0.5) rotate(18deg);
+  z-index: 2;
+  opacity: 0.5;
+}
+.sai-q2qrnyoo--coverflow {
+  padding-block: var(--sai-size-12, 80px);
+}
+
+/* ── Stripe ───────────────────────────────────────────────────
+   One slide visible at a time, edge-to-edge. Both the `<li>` wrapper
+   AND the `<a>` slide need 100% width — without sizing the `<li>` the
+   flex parent has nothing to give the slide's `width: 100%` a
+   reference, and both collapse to 0. */
+.sai-q2qrnyoo--stripe .sai-q2qrnyoo__row > li {
+  flex: 0 0 100% !important;
+  width: 100% !important;
+  scroll-snap-align: center;
+}
+.sai-q2qrnyoo--stripe .sai-q2qrnyoo__slide {
+  width: 100% !important;
+  height: 56vw !important;
+  max-height: 600px;
+  flex: 0 0 100% !important;
+}
+.sai-q2qrnyoo--stripe .sai-q2qrnyoo__row {
+  gap: 0 !important;
+  padding-inline: 0 !important;
+}
+@media (min-width: 768px) {
+  .sai-q2qrnyoo--stripe .sai-q2qrnyoo__slide {
+    height: 460px !important;
+  }
+}
+@media (min-width: 1440px) {
+  .sai-q2qrnyoo--stripe .sai-q2qrnyoo__slide {
+    height: 560px !important;
+  }
+}
+{% endstylesheet %}
+
+{%- assign content = variant.content -%}
+{%- comment -%}
+  `title` and `description` are the current keys; `eyebrow` / `heading`
+  are read as fallbacks for any pre-rename variant data that may still
+  exist in the DB.
+{%- endcomment -%}
+{%- assign title = content.title -%}
+{%- if title == nil or title == blank -%}
+  {%- assign title = content.eyebrow | default: '' -%}
+{%- endif -%}
+{%- assign description = content.description -%}
+{%- if description == nil or description == blank -%}
+  {%- assign description = content.heading | default: '' -%}
+{%- endif -%}
+{%- assign accent_color = content.accent_color | default: '' -%}
+
+{%- comment -%}
+  Title accent. Wraps the title text in an inline-block `__eyebrow-text`
+  span so the styler's text-align on `.__eyebrow` positions the shrunk
+  cluster. Mirrors the v5vphgd8 / tcm9wosw pattern.
+{%- endcomment -%}
+{%- if content.title_border_bottom == nil -%}
+  {%- assign title_border_bottom = true -%}
+{%- else -%}
+  {%- assign title_border_bottom = content.title_border_bottom -%}
+{%- endif -%}
+{%- assign title_border_color = content.title_border_color | default: '' -%}
+{%- capture title_border_attr -%}
+  {%- if title_border_bottom %} data-border-bottom="true"
+    {%- if title_border_color != blank %} style="--sai-q2qrnyoo-title-border-color: {{ title_border_color }};"{%- endif -%}
+  {%- endif -%}
+{%- endcapture -%}
+
+{%- assign layout_variant = content.layout_variant | default: 'uniform' -%}
+{%- unless layout_variant == 'uniform' or layout_variant == 'center_large' or layout_variant == 'coverflow' or layout_variant == 'stripe' -%}
+  {%- assign layout_variant = 'uniform' -%}
+{%- endunless -%}
+
+{%- assign image_aspect_ratio = content.image_aspect_ratio | default: 'default' -%}
+{%- unless image_aspect_ratio == 'default' or image_aspect_ratio == '1/1' or image_aspect_ratio == '4/3' or image_aspect_ratio == '16/9' or image_aspect_ratio == '21/9' or image_aspect_ratio == '3/4' or image_aspect_ratio == '9/16' -%}
+  {%- assign image_aspect_ratio = 'default' -%}
+{%- endunless -%}
+
+{%- comment -%}
+  Boolean defaults — use `== nil` checks because the `default` filter
+  treats `false` as falsy and would clobber a merchant's explicit off.
+{%- endcomment -%}
+{%- if content.show_arrows == nil -%}
+  {%- assign show_arrows = true -%}
+{%- else -%}
+  {%- assign show_arrows = content.show_arrows -%}
+{%- endif -%}
+
+{%- if content.autoplay == nil -%}
+  {%- assign autoplay = false -%}
+{%- else -%}
+  {%- assign autoplay = content.autoplay -%}
+{%- endif -%}
+
+{%- assign autoplay_ms = content.autoplay_ms -%}
+{%- if autoplay_ms == nil or autoplay_ms == blank -%}
+  {%- assign autoplay_ms = 5000 -%}
+{%- endif -%}
+{%- if autoplay_ms < 2000 -%}{%- assign autoplay_ms = 2000 -%}{%- endif -%}
+{%- if autoplay_ms > 15000 -%}{%- assign autoplay_ms = 15000 -%}{%- endif -%}
+
+{%- assign banners = content.banners -%}
+{%- if banners == nil -%}
+  {%- assign banners = '' | split: ',' -%}
+{%- endif -%}
+{%- assign total_banners = banners.size -%}
+
+{%- if heading != blank or eyebrow != blank or total_banners > 0 -%}
+{%- if accent_color != blank -%}
+<style>
+  [data-spectrum-instance-id="{{ mutation_handle }}"] .sai-q2qrnyoo {
+    --sai-q2qrnyoo-accent: {{ accent_color }};
+  }
+</style>
+{%- endif -%}
+
+<div class="sai-q2qrnyoo sai-q2qrnyoo--{{ layout_variant }}"
+     data-spectrum-snippet-id="q2qrnyoo"
+     data-spectrum-feature-slug="banner_carousel_list"
+     data-layout="{{ layout_variant }}"
+     data-aspect="{{ image_aspect_ratio }}"
+     data-autoplay="{% if autoplay %}true{% else %}false{% endif %}"
+     data-autoplay-ms="{{ autoplay_ms }}"
+     data-total="{{ total_banners }}">
+
+  {%- if title != blank or description != blank -%}
+    <div class="sai-q2qrnyoo__header">
+      {%- if title != blank -%}
+        <span class="sai-q2qrnyoo__eyebrow"{{ title_border_attr }}><span class="sai-q2qrnyoo__eyebrow-text">{{ title | escape }}</span></span>
+      {%- endif -%}
+      {%- if description != blank -%}
+        <h2 class="sai-q2qrnyoo__heading">{{ description | escape }}</h2>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+  {%- if total_banners > 0 -%}
+    <div class="sai-q2qrnyoo__frame">
+      <ul class="sai-q2qrnyoo__row" role="list">
+        {%- for b in banners -%}
+          {%- assign image_src = '' -%}
+          {%- if b.image and b.image.originalUrl -%}
+            {%- assign image_src = b.image.originalUrl -%}
+          {%- elsif b.image and b.image.previewUrl -%}
+            {%- assign image_src = b.image.previewUrl -%}
+          {%- endif -%}
+
+          {%- assign banner_url = b.url | default: '' -%}
+          {%- assign banner_title = b.title | default: '' -%}
+          {%- assign banner_subtitle = b.subtitle | default: '' -%}
+          {%- assign has_banner_text = false -%}
+          {%- if banner_title != blank or banner_subtitle != blank -%}
+            {%- assign has_banner_text = true -%}
+          {%- endif -%}
+
+          <li>
+            {%- comment -%}
+              Slide element is an `<a>` only when a destination URL is set;
+              otherwise it's a non-interactive `<div>` so we don't ship an
+              empty `<a href="">` that strands the visitor on the same
+              page. The overlay + text box only render when there's title
+              or subtitle copy to display — without text the overlay would
+              just tint the image with no purpose.
+            {%- endcomment -%}
+            {%- if banner_url != blank -%}
+              <a class="sai-q2qrnyoo__slide"
+                 href="{{ banner_url | escape }}"
+                 data-spectrum-banner-index="{{ forloop.index0 }}">
+                {%- if image_src != blank -%}
+                  <img class="sai-q2qrnyoo__image"
+                       src="{{ image_src }}"
+                       alt="{{ banner_title | escape }}"
+                       loading="lazy" />
+                {%- endif -%}
+                {%- if has_banner_text -%}
+                  <span class="sai-q2qrnyoo__overlay" aria-hidden="true"></span>
+                  <div class="sai-q2qrnyoo__text">
+                    {%- if banner_title != blank -%}
+                      <h3 class="sai-q2qrnyoo__title">{{ banner_title | escape }}</h3>
+                    {%- endif -%}
+                    {%- if banner_subtitle != blank -%}
+                      <p class="sai-q2qrnyoo__subtitle">{{ banner_subtitle | escape }}</p>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+              </a>
+            {%- else -%}
+              <div class="sai-q2qrnyoo__slide"
+                   data-spectrum-banner-index="{{ forloop.index0 }}">
+                {%- if image_src != blank -%}
+                  <img class="sai-q2qrnyoo__image"
+                       src="{{ image_src }}"
+                       alt="{{ banner_title | escape }}"
+                       loading="lazy" />
+                {%- endif -%}
+                {%- if has_banner_text -%}
+                  <span class="sai-q2qrnyoo__overlay" aria-hidden="true"></span>
+                  <div class="sai-q2qrnyoo__text">
+                    {%- if banner_title != blank -%}
+                      <h3 class="sai-q2qrnyoo__title">{{ banner_title | escape }}</h3>
+                    {%- endif -%}
+                    {%- if banner_subtitle != blank -%}
+                      <p class="sai-q2qrnyoo__subtitle">{{ banner_subtitle | escape }}</p>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+              </div>
+            {%- endif -%}
+          </li>
+        {%- endfor -%}
+      </ul>
+    </div>
+
+    <div class="sai-q2qrnyoo__controls">
+      {%- if show_arrows -%}
+        <button type="button"
+                class="sai-q2qrnyoo__arrow sai-q2qrnyoo__arrow--prev"
+                aria-label="Previous banner"
+                data-spectrum-arrow="prev">
+          <svg class="sai-q2qrnyoo__arrow-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      {%- endif -%}
+
+      <div class="sai-q2qrnyoo__progress"
+           role="progressbar"
+           aria-label="Carousel position"
+           aria-valuemin="0"
+           aria-valuemax="{{ total_banners }}"
+           aria-valuenow="0">
+        <span class="sai-q2qrnyoo__progress-thumb"
+              data-spectrum-progress-thumb
+              style="width: {{ 100 | divided_by: total_banners }}%; transform: translateX(0%);"></span>
+      </div>
+
+      {%- if show_arrows -%}
+        <button type="button"
+                class="sai-q2qrnyoo__arrow sai-q2qrnyoo__arrow--next"
+                aria-label="Next banner"
+                data-spectrum-arrow="next">
+          <svg class="sai-q2qrnyoo__arrow-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+</div>
+<script src="{{ 'sai-snippet-q2qrnyoo.js' | asset_url }}" async></script>
+{%- endif -%}
