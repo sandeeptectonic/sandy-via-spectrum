@@ -112,22 +112,46 @@
   color: var(--sai-color-fg);
 }
 
+/* Title alignment — non-accent baseline. `data-align` drives both the
+   text-align inside the heading (no-op when the heading fills the row,
+   useful when it's a single-line title) and the heading's margin auto so
+   that the accent variant below (width: fit-content) positions correctly.
+   The description below the title follows the same alignment via a
+   sibling rule. */
+.sai-v5vphgd8__heading[data-align="left"]   { text-align: left; }
+.sai-v5vphgd8__heading[data-align="center"] { text-align: center; }
+.sai-v5vphgd8__heading[data-align="right"]  { text-align: right; }
+.sai-v5vphgd8__heading[data-align="left"]   + .sai-v5vphgd8__description { text-align: left; }
+.sai-v5vphgd8__heading[data-align="center"] + .sai-v5vphgd8__description { text-align: center; }
+.sai-v5vphgd8__heading[data-align="right"]  + .sai-v5vphgd8__description { text-align: right; }
+
 /* Title accent — responsive treatment.
    Mobile: 3px border-bottom under the text only. Desktop: switches to a
    vertical accent bar to the left of the text via a pseudo-element with
    rounded ends. Color falls back to the heading's text color via
    currentColor when the merchant doesn't override it.
    `width: fit-content` lets the heading shrink to text width so the
-   border/bar doesn't span the full container, and `margin-inline: auto`
-   centers the heading as a block — inline-block wouldn't, because that
-   would defer centering to the parent's text-align. */
+   border/bar only spans the text. Positioning within the parent comes
+   from `margin-inline` — auto on whichever side(s) push the heading to
+   the chosen alignment. */
 .sai-v5vphgd8__heading[data-border-bottom="true"] {
   display: block !important;
   width: fit-content;
-  margin-inline: auto;
   padding-bottom: var(--sai-size-2);
   border-bottom: 3px solid
     var(--sai-v5vphgd8-heading-border-color, currentColor);
+}
+
+.sai-v5vphgd8__heading[data-border-bottom="true"][data-align="left"] {
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
+.sai-v5vphgd8__heading[data-border-bottom="true"][data-align="center"] {
+  margin-inline: auto;
+}
+.sai-v5vphgd8__heading[data-border-bottom="true"][data-align="right"] {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
 }
 
 @media (min-width: 750px) {
@@ -1619,6 +1643,19 @@
 {%- endif -%}
 
 {%- comment -%}
+  Heading alignment — left / center / right. Default center for backward
+  compatibility with instances that pre-date this prop. The resolved value
+  feeds both a `data-align` attribute on the heading (drives positioning
+  for the accent / fit-content treatment) and a class on the root
+  container (drives text-align on the heading + description in the
+  baseline / no-accent case).
+{%- endcomment -%}
+{%- assign heading_alignment = content.heading_alignment | default: 'center' -%}
+{%- unless heading_alignment == 'left' or heading_alignment == 'center' or heading_alignment == 'right' -%}
+  {%- assign heading_alignment = 'center' -%}
+{%- endunless -%}
+
+{%- comment -%}
   Heading underline — opt-in border below the title text. Color falls back
   to the heading's text color (currentColor) when no override is set.
 {%- endcomment -%}
@@ -1633,6 +1670,7 @@
     {%- if heading_border_color != blank %} style="--sai-v5vphgd8-heading-border-color: {{ heading_border_color }};"{%- endif -%}
   {%- endif -%}
 {%- endcapture -%}
+{%- capture heading_align_attr -%} data-align="{{ heading_alignment }}"{%- endcapture -%}
 
 {%- assign section_asset_position = content.section_asset_position | default: 'left' -%}
 {%- unless section_asset_position == 'left' or section_asset_position == 'right' -%}
@@ -2091,10 +2129,10 @@
                alt=""
                loading="lazy"
                aria-hidden="true" />
-          <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}>{{ heading | escape }}</h2>
+          <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}{{ heading_align_attr }}>{{ heading | escape }}</h2>
         </div>
       {%- else -%}
-        <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}>{{ heading | escape }}</h2>
+        <h2 class="sai-v5vphgd8__heading"{{ heading_border_attr }}{{ heading_align_attr }}>{{ heading | escape }}</h2>
       {%- endif -%}
     {%- endif -%}
     {%- if description != blank -%}
