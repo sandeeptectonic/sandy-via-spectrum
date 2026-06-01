@@ -3,8 +3,8 @@
  *
  * Responsibilities:
  *   1. Variant-resolution binding — `applyVariant` patches the cheap fields
- *      (heading text, description, alignment class, cards-per-row CSS var)
- *      every time the runtime SDK fires `$spectrum:variant_resolved`.
+ *      (heading text, description, cards-per-row CSS var) every time the
+ *      runtime SDK fires `$spectrum:variant_resolved`.
  *   2. Page-level carousel wiring — when `data-layout="carousel"` is on the
  *      layout wrapper, attach arrow / dot handlers and keep the active
  *      progress indicator (dots / scroll-bar thumb / stepper) in sync with
@@ -24,7 +24,7 @@
   const SNIPPET_ID = 'v5vphgd8'
   const FEATURE_SLUG = 'collection_product_list'
   const ROOT_SELECTOR = `.sai-${SNIPPET_ID}`
-  const HEADING_SELECTOR = `.sai-${SNIPPET_ID}__heading`
+  const HEADING_SELECTOR = `.sai-${SNIPPET_ID}__heading-text`
   const DESCRIPTION_SELECTOR = `.sai-${SNIPPET_ID}__description`
   const LAYOUT_SELECTOR = `.sai-${SNIPPET_ID}__layout`
   const GRID_SELECTOR = `.sai-${SNIPPET_ID}__grid`
@@ -36,13 +36,11 @@
   const CPR_VAR_M = `--sai-${SNIPPET_ID}-cpr-m`
   const CPR_VAR_T = `--sai-${SNIPPET_ID}-cpr-t`
   const CPR_VAR_D = `--sai-${SNIPPET_ID}-cpr-d`
-  const ALIGN_PREFIX = `sai-${SNIPPET_ID}--align-`
   const CPR_MIN = 1
   const CPR_MAX = 6
   const CPR_DEFAULT_M = 2
   const CPR_DEFAULT_T = 3
   const CPR_DEFAULT_D = 4
-  const ALIGN_VALUES = new Set(['left', 'center', 'right'])
   // Minimum on-screen time for the ATC/Buy Now spinner so cart writes that
   // resolve in <100ms don't flash the loader imperceptibly before the modal
   // closes / the navigation fires.
@@ -141,22 +139,10 @@
     return { mobile, tablet, desktop }
   }
 
-  function normaliseAlignment(value) {
-    return ALIGN_VALUES.has(value) ? value : 'left'
-  }
-
   function setText(node, selector, text) {
     const el = node.querySelector(selector)
     if (!el) return
     el.textContent = typeof text === 'string' ? text : ''
-  }
-
-  function applyAlignment(root, align) {
-    const next = normaliseAlignment(align)
-    for (const cls of Array.from(root.classList)) {
-      if (cls.startsWith(ALIGN_PREFIX)) root.classList.remove(cls)
-    }
-    root.classList.add(`${ALIGN_PREFIX}${next}`)
   }
 
   function applyVariant(node, content) {
@@ -165,7 +151,6 @@
 
     if ('heading' in content) setText(node, HEADING_SELECTOR, content.heading)
     if ('description' in content) setText(node, DESCRIPTION_SELECTOR, content.description)
-    if ('heading_alignment' in content) applyAlignment(root, content.heading_alignment)
 
     const grid = node.querySelector(GRID_SELECTOR)
     if (grid && 'cards_per_row' in content) {
@@ -1247,7 +1232,6 @@
       applyVariant,
       clampCpr,
       resolveCardsPerRow,
-      normaliseAlignment,
       currentIndexFor,
       readPayloadForProduct,
       discoverCartSectionIds,
