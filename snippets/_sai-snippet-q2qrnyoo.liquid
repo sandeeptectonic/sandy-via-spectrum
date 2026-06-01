@@ -649,6 +649,29 @@
             {%- assign has_banner_text = true -%}
           {%- endif -%}
 
+          {%- comment -%}
+            Initial `data-position` for SSR — mirrors the wrap-aware
+            relativeOffset(i) the JS recomputes on every paint with
+            currentIdx = 0. Without this attribute the center_large /
+            coverflow CSS rules don't match on first paint and every
+            slide renders at scale(1), blowing up the layout until JS
+            runs `paint()` and (for some layouts) the user has scrolled
+            enough to nudge it back. Baking the position here makes the
+            first frame already look correct.
+
+            Formula (current = 0):
+              offset = i - 0 = i
+              if offset > total/2 → offset -= total   (wrap to negative)
+              pos = clamp(offset, -2, 2)
+          {%- endcomment -%}
+          {%- assign _banner_half = total_banners | times: 1.0 | divided_by: 2.0 -%}
+          {%- assign _banner_pos = forloop.index0 -%}
+          {%- if _banner_pos > _banner_half -%}
+            {%- assign _banner_pos = _banner_pos | minus: total_banners -%}
+          {%- endif -%}
+          {%- if _banner_pos > 2 -%}{%- assign _banner_pos = 2 -%}{%- endif -%}
+          {%- if _banner_pos < -2 -%}{%- assign _banner_pos = -2 -%}{%- endif -%}
+
           <li>
             {%- comment -%}
               Slide element is an `<a>` only when a destination URL is set;
@@ -659,9 +682,10 @@
               just tint the image with no purpose.
             {%- endcomment -%}
             {%- if banner_url != blank -%}
-              <a class="sai-q2qrnyoo__slide"
+              <a class="sai-q2qrnyoo__slide{% if forloop.first %} is-active{% endif %}"
                  href="{{ banner_url | escape }}"
-                 data-spectrum-banner-index="{{ forloop.index0 }}">
+                 data-spectrum-banner-index="{{ forloop.index0 }}"
+                 data-position="{{ _banner_pos }}">
                 {%- if image_src != blank -%}
                   <img class="sai-q2qrnyoo__image"
                        src="{{ image_src }}"
@@ -681,8 +705,9 @@
                 {%- endif -%}
               </a>
             {%- else -%}
-              <div class="sai-q2qrnyoo__slide"
-                   data-spectrum-banner-index="{{ forloop.index0 }}">
+              <div class="sai-q2qrnyoo__slide{% if forloop.first %} is-active{% endif %}"
+                   data-spectrum-banner-index="{{ forloop.index0 }}"
+                   data-position="{{ _banner_pos }}">
                 {%- if image_src != blank -%}
                   <img class="sai-q2qrnyoo__image"
                        src="{{ image_src }}"
