@@ -256,17 +256,19 @@
       }
 
       if (thumb && grid.scrollWidth > 0) {
-        // Page-based thumb sizing + position (mirrors q2qrnyoo's working
-        // implementation). The thumb's width is `100 / totalPages` percent
-        // of the track; its transform translates by `100%` of its own
-        // width per active page. CSS `translateX(N%)` resolves against
-        // the element's own width — so a thumb that is 25% of the track
-        // wide translated by 300% moves 300% × 25% = 75% of the track,
-        // landing its right edge exactly at the right edge of the track
-        // on the last page (3 of 4). Smooth pixel-based progress math
-        // mistakenly treated this percentage as relative to the parent
-        // and stranded the thumb mid-track.
-        const widthPct = Math.max(100 / totalPages, 5)
+        // Page-based thumb sizing + position, scoped to *reachable* pages
+        // rather than nominal pages. With fractional cpr (e.g. 1.5) the
+        // pageSize rounds to 1, totalPages = cards.length, but the last
+        // snap-reachable cardIdx is `floor(max / stride)` which can be
+        // smaller than cards.length - 1. Sizing the thumb by totalPages
+        // would leave it stranded at (lastReachableIdx / totalPages) of
+        // the track on the last page — never flush right. Compute the
+        // count of pages the user can actually land on (`reachablePages`)
+        // and size by that instead.
+        const lastReachablePage =
+          pageSize > 0 ? Math.floor(lastReachableIdx / pageSize) : 0
+        const reachablePages = Math.max(1, lastReachablePage + 1)
+        const widthPct = Math.max(100 / reachablePages, 5)
         thumb.style.width = `${widthPct}%`
         thumb.style.transform = `translateX(${activePage * 100}%)`
       }
